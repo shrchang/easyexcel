@@ -1,26 +1,12 @@
 package com.alibaba.excel.read;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
-
-import javax.xml.parsers.ParserConfigurationException;
-
-import com.alibaba.excel.read.v07.RowHandler;
-import com.alibaba.excel.read.v07.XmlParserFactory;
-import com.alibaba.excel.read.v07.XMLTempFile;
+import com.alibaba.excel.metadata.Sheet;
 import com.alibaba.excel.read.context.AnalysisContext;
 import com.alibaba.excel.read.exception.ExcelAnalysisException;
-import com.alibaba.excel.metadata.Sheet;
+import com.alibaba.excel.read.v07.RowHandler;
+import com.alibaba.excel.read.v07.XMLTempFile;
+import com.alibaba.excel.read.v07.XmlParserFactory;
 import com.alibaba.excel.util.FileUtil;
-
 import org.apache.poi.xssf.model.SharedStringsTable;
 import org.apache.xmlbeans.XmlException;
 import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTWorkbook;
@@ -30,6 +16,10 @@ import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
+
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.*;
+import java.util.*;
 
 /**
  * @author jipengfei
@@ -76,7 +66,9 @@ public class SaxAnalyserV07 extends BaseSaxAnalyser {
             int i = 0;
             for (SheetSource sheetSource : this.sheetSourceList) {
                 i++;
-                this.analysisContext.setCurrentSheet(new Sheet(i));
+                Sheet st = new Sheet(i);
+                st.setSheetName(sheetSource.getSheetName());
+                this.analysisContext.setCurrentSheet(st);
                 parseXmlSource(sheetSource.getInputStream());
             }
 
@@ -210,9 +202,18 @@ public class SaxAnalyserV07 extends BaseSaxAnalyser {
         //this.sharedStringsTable.readFrom(inputStream);
 
         XmlParserFactory.parse(inputStream, new DefaultHandler() {
+            private String shardStr = "";
             @Override
             public void characters(char[] ch, int start, int length) {
-                sharedStringList.add(new String(ch, start, length));
+                //sharedStringList.add(new String(ch, start, length));
+                shardStr = shardStr + new String(ch, start, length);
+            }
+            @Override
+            public void endElement(String uri, String localName, String qName){
+                if(qName.equals("t")){//这是结束标志
+                    sharedStringList.add(shardStr);
+                    shardStr = "";
+                }
             }
 
         });
